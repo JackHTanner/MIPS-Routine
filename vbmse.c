@@ -13,16 +13,7 @@ int computeSAD(int V[I][J], int B[K][L], int n, int m) {
             sum += abs(V[s][d] - B[s - (n - K)][d - (m - L)]);
         }
     }
-    printf("%d, ", sum); //DEBUG
     return sum;
-}
-
-
-int findBS(int sum, int bs) {
-    if (sum < bs) {
-        bs = sum;
-    }
-    return bs;
 }
 
 int diagonalSearch(int V[I][J], int B[K][L], int *bestN, int *bestM) {
@@ -37,8 +28,8 @@ int diagonalSearch(int V[I][J], int B[K][L], int *bestN, int *bestM) {
                     int sad = computeSAD(V, B, n + K, m + L);
                     if (sad < bestSAD) {
                         bestSAD = sad;
-                        *bestN = n;
-                        *bestM = m;
+                        *bestN = n + 1;
+                        *bestM = m + 1;
                     }
                 }
             }
@@ -50,8 +41,8 @@ int diagonalSearch(int V[I][J], int B[K][L], int *bestN, int *bestM) {
                     int sad = computeSAD(V, B, n + K, m + L);
                     if (sad < bestSAD) {
                         bestSAD = sad;
-                        *bestN = n;
-                        *bestM = m;
+                        *bestN = n + 1;
+                        *bestM = m + 1;
                     }
                 }
             }
@@ -59,7 +50,7 @@ int diagonalSearch(int V[I][J], int B[K][L], int *bestN, int *bestM) {
     }
     return bestSAD;
 }
-    
+
 int main() {
     int window[I][J]={{0, 1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
                       {1, 2, 3, 4, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,},
@@ -84,12 +75,11 @@ int main() {
                      {3, 4, 5, 6}
     };
     
-    int bestX = -1;
-    int bestY = -1;
+    int bestX;
+    int bestY;
     
-    int bestSAD = diagonalSearch(window, frame, &bestX, &bestY);
+    diagonalSearch(window, frame, &bestX, &bestY);
     
-    printf("\n\nBest SAD: %d\n", bestSAD); //DEBUG
     printf("Best SAD Coordinates: [%d, %d]", bestX, bestY);
     
     return 0;
