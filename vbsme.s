@@ -1,13 +1,12 @@
-# Fall 2025
-# Team Members:    
-# % Effort    :   
+#  Team Members:    Jack Tanner, Brendan Herrera
+#  % Effort    :   50%, 50%
 #
 # ECE369A,  
 # 
 
 ########################################################################################################################
 ### data
-########################################################################################################################
+#  ####################################################################################################################### 
 .data
 # test input
 # asize : dimensions of the frame [i, j] and window [k, l]
@@ -764,7 +763,6 @@ print_result:
 
 .text
 .globl  vbsme
-.globl computeSAD
 
 # Your program must follow the required search pattern.  
 
@@ -782,203 +780,198 @@ vbsme:
     li      $v0, 0              # reset $v0 and $V1
     li      $v1, 0
 
-    addi $sp, $sp, -32
-    sw   $ra, 28($sp)
-    sw   $s0, 24($sp)   # bestSAD
-    sw   $s1, 20($sp)   # bestX
-    sw   $s2, 16($sp)   # bestY
-    sw   $s3, 12($sp)   # diag
-    sw   $s4, 8($sp)    # i
-    sw   $s5, 4($sp)    # n
-    sw   $s6, 0($sp)    # m
+    # insert your code here
 
-    # Load sizes from asize array
-    lw   $s7, 0($a0)    # I
-    lw   $t0, 4($a0)    # J
-    lw   $t1, 8($a0)    # K
-    lw   $t2, 12($a0)   # L
+# load the new #ra in pos8
+addi    $sp, $sp, -4    # Make space on stack
+sw      $ra, 0($sp)
 
-    li   $s0, 0x7fffffff   # bestSAD
-    li   $s1, 0             # bestX
-    li   $s2, 0             # bestY
+j realmain
 
-    # diag = 0 to (I-K)+(J-L)
-    li   $s3, 0
-    sub  $t3, $s7, $t1      # I-K
-    sub  $t4, $t0, $t2      # J-L
-    add  $t5, $t3, $t4      # max diag
+sad:
+add $t0, $zero, $zero        # sum = 0
+add $t1, $zero, $zero        # i = 0
 
-diag_loop:
-    bgt  $s3, $t5, end_diag
+slt $t3, $t1, $s2          # comparison value for i<asize[2]
+bne $t3, $zero, loop1      # jumping loop1 if ^
+iincrement:
+addi $t1, $t1, 1           # i++
+slt $t3, $t1, $s2          # comparison value for i<asize[2]
+bne $t3, $zero, loop1      # jumping loop1 if ^
+#exit sad
+jr $ra
+loop1:
+add $t2, $zero, $zero      # j = 0
+slt $t3, $t2, $s3          # comparison value for j<asize[3] => t3 will be 1 might not need
+bne $t3, $zero, loop2      # jumping to inside loop if ^
+j iincrement
+jincrement:
+addi $t2, $t2,1
+slt $t3, $t2, $s3          # comparison value for j<asize[3] => t3 will be 1
+bne $t3, $zero, loop2      # jumping to inside loop if ^
+j iincrement
+loop2:
+mul $s6, $s1, $t1          # asize[1] * i
+add $s6, $s6, $t2          # asize[1] * i + j
+add $s6, $s6, $t7          # asize[1] * i + j + fpos
+sll $s6, $s6, 2
+add $s6, $a1, $s6
+lw $s6, 0($s6)
+mul $s7, $s3, $t1          # asize[3] * i
+add $s7, $s7, $t2          # asize[3] * i + j
+sll $s7, $s7, 2
+add $s7, $a2, $s7
+lw $s7, 0($s7)
+#start of abs abs(frame[j +((asize[1]) * i) +fPos] -window[i * asize[3] + j])
+slt $t4, $s6, $s7
+beq $t4, $zero, firstpos
+sub $t4, $s7, $s6
+j over
+firstpos:
+sub $t4, $s6, $s7
+over:
+add $t0, $t0, $t4
+j jincrement
 
-    andi $t6, $s3, 1        # diag % 2
-    beq  $t6, $zero, even_diag
+realmain:
 
-#--- odd diagonal ---
-    move $s4, $s3
-odd_i_loop:
-    blt  $s4, 0, end_odd_i
-    move $s5, $s4       # n = i
-    sub  $s6, $s3, $s4  # m = diag-i
+# la to bring in a0 as asize
+# la to bring in a1 as frame address
+# la to bring in a2 as window address
+lw $s0, 0($a0)          # storing asize[0]
+lw $s1, 4($a0)             # storing asize[1]
+lw $s2, 8($a0)             # storing asize[2]
+lw $s3, 12($a0)            # storing asize[3]
+sub $s4, $s1, $s3          # asize[1] - asize[3]
+sub $s5, $s0, $s2          # asize[0] - asize[2]
 
-    # check bounds
-    ble  $s5, $t3, call_sad_odd
-    j skip_odd
-call_sad_odd:
-    # pass args to computeSAD
-    move $a2, $s5
-    move $a3, $s6
-    # push I,J,K,L
-    addi $sp, $sp, -16
-    sw   $s7, 0($sp)
-    sw   $t0, 4($sp)
-    sw   $t1, 8($sp)
-    sw   $t2, 12($sp)
-    jal  computeSAD
-    addi $sp, $sp, 16
-    move $t7, $v0
-    slt  $t8, $t7, $s0
-    beq  $t8, $zero, skip_odd
-    move $s0, $t7
-    move $s1, $s5
-    move $s2, $s6
-skip_odd:
-    addi $s4, $s4, -1
-    j odd_i_loop
-end_odd_i:
+addi $t5, $zero, 10000    # min = 100000
+add $t7, $zero, $zero      # fpos = 0
+add $t8, $zero, $zero      # r = 0
+add $t9, $zero, $zero      # c = 0
+jal sad
+# repeating if statement sad versus min (might be used a lot)
+slt $t1, $t5, $t0          # comparison min<sum
+bne $t1, $zero, while
+add $t5, $zero, $t0        # min = sum
+add $t6, $zero, $t8        # minR
+add $s0, $zero, $t9        # minC
 
-    j diag_done
 
-even_diag:
-    li   $s4, 0
-even_i_loop:
-    bgt  $s4, $s3, end_even_i
-    move $s5, $s4       # n = i
-    sub  $s6, $s3, $s4  # m = diag-i
-    ble  $s5, $t3, call_sad_even
-    j skip_even
-call_sad_even:
-    move $a2, $s5
-    move $a3, $s6
-    addi $sp, $sp, -16
-    sw   $s7, 0($sp)
-    sw   $t0, 4($sp)
-    sw   $t1, 8($sp)
-    sw   $t2, 12($sp)
-    jal  computeSAD
-    addi $sp, $sp, 16
-    move $t7, $v0
-    slt  $t8, $t7, $s0
-    beq  $t8, $zero, skip_even
-    move $s0, $t7
-    move $s1, $s5
-    move $s2, $s6
-skip_even:
-    addi $s4, $s4, 1
-    j even_i_loop
-end_even_i:
 
-diag_done:
-    addi $s3, $s3, 1
-    j diag_loop
+while: #while (!((c == (asize[1] - asize[3])) && (r == (asize[0] - asize[2]))))
 
-end_diag:
-    move $v0, $s1
-    move $v1, $s2
+exitcondition1:
+beq $t9, $s4, exitcondition2 # if c == (asize[1] - asize[3] check cond. 2
+j skipexit2
+exitcondition2:
+beq $t8, $s5, exited         # if r == (asize[0] - asize[2] exit loop
+j skipexit2
+exited:
+jal sad
+slt $t1, $t5, $t0          # comparison min<sum
+bne $t1, $zero, exiting
+add $t5, $zero, $t0        # min = sum
+add $t6, $zero, $t8        # minR
+add $s0, $zero, $t9        # minC
+exiting:
+j exit
+skipexit2:
+if1:
+bne $t9, $s4, if2          # if (c == (asize[1] - asize[3])) continue
+addi $t8, $t8, 1           # r++
+mul $t7, $s1, $t8          # r * asize[1]
+add $t7, $t7, $t9          # fpos = r * asize[1] + c
+jal sad
+slt $t1, $t5, $t0          # comparison min<sum
+bne $t1, $zero, diagup
+add $t5, $zero, $t0        # min = sum
+add $t6, $zero, $t8
+add $s0, $zero, $t9
 
-    lw   $ra, 28($sp)
-    lw   $s0, 24($sp)
-    lw   $s1, 20($sp)
-    lw   $s2, 16($sp)
-    lw   $s3, 12($sp)
-    lw   $s4, 8($sp)
-    lw   $s5, 4($sp)
-    lw   $s6, 0($sp)
-    addi $sp, $sp, 32
-    jr   $ra
+if2:
+bne $t8, $s5, if3          # else if (r == (asize[0] - asize[2]))
+addi $t9, $t9, 1           # c++
+mul $t7, $t8, $s1          # r * asize[1]
+add $t7, $t7, $t9          # fpos = r * asize[1] + c
+jal sad
+slt $t1, $t5, $t0          # comparison min<sum
+bne $t1, $zero, diagup
+add $t5, $zero, $t0        # min = sum
+add $t6, $zero, $t8        # storing r (v0) later
+add $s0, $zero, $t9        # storing c (v1) later
 
-.text
-.globl computeSAD
-computeSAD:
-    # Arguments:
-    # a0 = window base (V)
-    # a1 = frame base (B)
-    # a2 = n (row index)
-    # a3 = m (col index)
-    # I,J,K,L passed on stack: 0($sp)=I, 4($sp)=J, 8($sp)=K, 12($sp)=L
+if3:
+bne $t8, $zero, if4        #  else if (r == 0)
+addi $t9, $t9, 1           # c++
+mul $t7, $t8, $s1          # r * asize[1]
+add $t7,$t7, $t9           # fpos = r * asize[1] + c
+jal sad
+slt $t1, $t5, $t0          # comparison min<sum
+bne $t1, $zero, diagup
+add $t5, $zero, $t0        # min = sum
+add $t6, $zero, $t8        # storing r (v0) later
+add $s0, $zero, $t9        # storing c (v1) later
 
-    addi $sp, $sp, -32
-    sw   $ra, 28($sp)
-    sw   $s0, 24($sp)   # sum
-    sw   $s1, 20($sp)   # row loop
-    sw   $s2, 16($sp)   # col loop
-    sw   $s3, 12($sp)   # I
-    sw   $s4, 8($sp)    # J
-    sw   $s5, 4($sp)    # K
-    sw   $s6, 0($sp)    # L
+if4:
+bne $t9,$zero, diagup        # else if (c == 0)
+addi $t8, $t8, 1           # r++
+mul $t7, $t8, $s1          # r * asize[1]
+add $t7,$t7, $t9           # fpos = r * asize[1] + c;
+jal sad
+slt $t1, $t5, $t0          # comparison min<sum
+bne $t1, $zero, diagup
+add $t5, $zero, $t0        # min = sum
+add $t6, $zero, $t8        # storing r (v0) later
+add $s0, $zero, $t9        # storing c (v1) later
 
-    # Load I,J,K,L from caller's stack
-    lw   $s3, 0($sp)    # I
-    lw   $s4, 4($sp)    # J
-    lw   $s5, 8($sp)    # K
-    lw   $s6, 12($sp)   # L
+diagup:
+slt $t1, $t9, $t8 # if c<r then set t1  = 1 we currenytly have c = 1 and r = 0 and we want to move down the diagonal
+beq $zero, $t1, diagdown
+diagupexit1:
+beq $t8, $zero, while
+diagupexit2:
+beq $t9, $s4, while
+skip1:
+addi $t8, $t8, -1          # r--
+addi $t9, $t9, 1           # c++
+mul $t7, $t8,$s1           # r * asize[1]
+add $t7,$t7, $t9           # fpos = r * asize[1] + c;
+jal sad
+slt $t1, $t5, $t0          # comparison min<sum
+bne $t1, $zero, command1      # exit function if
+add $t5, $zero, $t0        # min = sum
+add $t6, $zero, $t8        # storing r (v0) later
+add $s0, $zero, $t9        # storing c (v1) later
+command1:
+j diagupexit1
 
-    li   $s0, 0         # sum = 0
+diagdown:
+diagdownexit1:
+beq $t9, $zero, while     # if c != 0 continue
+diagdownexit2:
+beq $t8, $s5, while       # if r != (asize[0] - asize[2]) continue
+skip2:
+addi $t8,$t8,1               # r++
+addi $t9, $t9, -1           # c--
+mul $t7, $t8, $s1
+add $t7,$t7, $t9
+jal sad
+slt $t1, $t5, $t0          # comparison min<sum
+bne $t1, $zero, command2
+add $t5, $zero, $t0        # min = sum
+add $t6, $zero, $t8        # storing r (v0) later
+add $s0, $zero, $t9        # storing c (v1) later
+command2:
+j diagdownexit1
 
-    # Outer loop over rows s = n .. n+K-1
-    move $s1, $zero
-row_loop:
-    bge  $s1, $s5, end_row_loop
-    # Outer row index in window: s = n + s1
-    add  $t0, $a2, $s1  # t0 = s
-
-    # Inner loop over columns d = m .. m+L-1
-    move $s2, $zero
-col_loop:
-    bge  $s2, $s6, end_col_loop
-    add  $t1, $a3, $s2  # d = m + s2
-
-    # Compute offsets
-    # offsetV = s*J + d
-    mul  $t2, $t0, $s4
-    add  $t2, $t2, $t1
-    sll  $t2, $t2, 2      # word offset
-    add  $t3, $a0, $t2    # addr V[s][d]
-    lw   $t4, 0($t3)
-
-    # offsetB = s1*L + s2
-    mul  $t5, $s1, $s6
-    add  $t5, $t5, $s2
-    sll  $t5, $t5, 2
-    add  $t6, $a1, $t5
-    lw   $t7, 0($t6)
-
-    # sum += abs(V[s][d] - B[s1][s2])
-    sub  $t8, $t4, $t7
-    bltz $t8, neg_val
-    add  $s0, $s0, $t8
-    j end_abs
-neg_val:
-    sub  $t8, $zero, $t8
-    add  $s0, $s0, $t8
-end_abs:
-
-    addi $s2, $s2, 1
-    j col_loop
-end_col_loop:
-    addi $s1, $s1, 1
-    j row_loop
-end_row_loop:
-
-    move $v0, $s0  # return sum
-
-    lw   $ra, 28($sp)
-    lw   $s0, 24($sp)
-    lw   $s1, 20($sp)
-    lw   $s2, 16($sp)
-    lw   $s3, 12($sp)
-    lw   $s4, 8($sp)
-    lw   $s5, 4($sp)
-    lw   $s6, 0($sp)
-    addi $sp, $sp, 32
-    jr   $ra
+exit:
+# minFPos is our return
+# convert minFpos to r and c values put r into v0 and c in to v1
+# (v0) x coordinate of the block in the frame with the minimum SAD
+# (v1) y coordinate of the block in the frame with the minimum SAD
+add $v0, $zero, $t6
+add $v1, $zero, $s0
+lw $ra, 0($sp)          # grabbing return address from stack
+addi $sp, $sp, 4
+jr $ra
